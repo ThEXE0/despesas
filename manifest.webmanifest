@@ -1,11 +1,11 @@
 {
- "name": "Controle Financeiro",
+ "name": "Controle de Despesas",
  "short_name": "Despesas",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
- "background_color": "#0b1220",
- "theme_color": "#0b1220",
+ "background_color": "#0a1020",
+ "theme_color": "#0a1020",
  "lang": "pt-BR",
  "icons": [
   {
