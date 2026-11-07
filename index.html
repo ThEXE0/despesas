@@ -78,14 +78,17 @@ const SC={pago:["Pago","ok"],pendente:["A pagar","wn"],vencida:["Vencida","bad"]
 const row=i=>{const s=sit(i),c=ci(i.cat,i.tipo);return `<div class="it" data-a="o" data-id="${i.id}"><div class="ic" style="background:${c.c}33">${c.i}</div><div style="flex:1;min-width:0"><div class="nm">${esc(lb(i))}</div><div class="lb">${esc(i.cat)}${i.car?" · "+esc(i.car):""} · ${s==="pago"&&i.dp?"Pago em "+br(i.dp):s==="vencida"?"Venceu há "+-dif(i.data)+" dia(s)":"Vence "+br(i.data)}</div></div><div style="text-align:right"><b>${R(i.val)}</b><div><span class="ch ${SC[s][1]}">${SC[s][0]}</span></div></div></div>`};
 const mk=(c,g,l,v,cl="")=>`<div class="card"><div class="mc"><div class="ic" style="background:${c}2e;color:${c}">${g}</div><div><div class="lb">${l}</div><div class="big ${cl}">${v}</div></div></div></div>`;
 function push(x){try{if(window.Notification&&Notification.permission==="granted"&&navigator.serviceWorker)navigator.serviceWorker.ready.then(r=>r.showNotification("Controle de Despesas",{body:x,icon:"icon-192.png"}))}catch(e){}}
-function nf(k,t,x,id){if(st.cfg.off[t]||st.nk.includes(k)||st.nt.some(n=>n.k===k))return;st.nt.unshift({k,t,x,id,ts:new Date().toISOString(),r:0});push(x)}
+let PQ=[];function flush(){const q=PQ;PQ=[];if(q.length>3)push(q.length+" novas notificações no Controle de Despesas.");else q.forEach(push)}
+function nf(k,t,x,id){if(st.cfg.off[t]||st.nk.includes(k)||st.nt.some(n=>n.k===k))return;st.nt.unshift({k,t,x,id,ts:new Date().toISOString(),r:0});PQ.push(x)}
 const nth=(s,n)=>s.f==="w"?dd(s.s,7*n):addD(s.s,s.f==="y"?12*n:n);
 function genRec(){const lim=dd(hoje,30);st.rec.filter(s=>!s.stop).forEach(s=>{for(let c=0;c<400;c++){const d=nth(s,s.n);if(d>lim||(s.e&&d>s.e))break;st.itens.push({id:s.id+"-"+s.n,desc:s.desc,val:s.val,data:d,dc:d,tipo:s.tipo,cat:s.cat,pg:s.pg,car:s.car,st:"pendente",rid:s.id,obs:s.obs});if(d>=hoje)nf(`r:${s.id}:${s.n}`,"r",`Sua despesa ${{m:"mensal",w:"semanal",y:"anual"}[s.f]} de ${s.desc} foi adicionada.`,s.id+"-"+s.n);s.n++}})}
-function gen(){const th=[...new Set([+st.cfg.ant||3,1,0])].sort((a,b)=>a-b);
-EX().filter(i=>i.st!=="pago").forEach(i=>{const d=dif(i.data),p=i.ps>1,n=p?`A parcela ${i.pi}/${i.ps} de ${i.desc}`:`Sua despesa ${i.desc} de ${R(i.val)}`;
-if(d<0)nf("a:"+i.id,"a",`${n} está atrasada há ${-d} dia(s).`,i.id);else{const t=th.find(x=>x>=d);if(t!==undefined)nf(`v:${i.id}:${t}`,p?"p":"v",`${n} vence ${d===0?"hoje":d===1?"amanhã":"em "+d+" dias"}.`,i.id)}});
+function gen(){const th=[...new Set([+st.cfg.ant||3,1,0])].sort((a,b)=>a-b),G={};
+EX().filter(i=>i.st!=="pago").forEach(i=>(G[i.data]=G[i.data]||[]).push(i));
+Object.entries(G).forEach(([date,a])=>{const d=dif(date),one=a.length===1?a[0]:null,p=one&&one.ps>1,n=one?(p?`A parcela ${one.pi}/${one.ps} de ${one.desc}`:`Sua despesa ${one.desc} de ${R(one.val)}`):`${a.length} despesas (${R(sum(a))})`;
+if(d<0)nf("a:"+date,"a",`${n} ${one?"está atrasada":"estão atrasadas"} há ${-d} dia(s).`,one&&one.id);
+else{const t=th.find(x=>x>=d);if(t!==undefined)nf(`v:${date}:${t}`,p?"p":"v",`${n} ${one?"vence":"vencem"} ${d===0?"hoje":d===1?"amanhã":"em "+d+" dias"}.`,one&&one.id)}});
 const m=hoje.slice(0,7);["P","N"].forEach(t=>{const b=st.orc[m+"|"+t]||0,u=sum(mon(m,i=>i.tipo===t));if(b)[80,100].forEach(l=>{if(u/b*100>=l)nf(`o:${m}:${t}:${l}`,"o",`Você já utilizou ${l}% do orçamento mensal ${t==="P"?"pessoal":"do negócio"}.`)})})}
-function render(){genRec();gen();save();
+function render(){const f1=!st.mig;if(f1)st.nt=st.nt.filter(n=>/^(?![va]:)|^[va]:\d{4}-\d\d-\d\d/.test(n.k));genRec();gen();if(f1){PQ=[];st.mig=1}else flush();save();
 const m=$("mes").value,a=mon(m),des=sum(a),pg=sum(a.filter(i=>i.st==="pago")),b=bud(m,aba),pct=b?des/b*100:0,un=st.nt.filter(n=>!n.r).length;
 $("bd").textContent=un;$("bd").style.display=un?"grid":"none";
 const sh=["home","ex","rep"].includes(view);$("fil").style.display=$("mes").style.display=sh?"":"none";$("fab").style.display=view==="home"||view==="ex"?"":"none";
@@ -130,7 +133,7 @@ if(F.id)Object.assign(st.itens.find(x=>x.id===F.id),b);else if($("fr").value){st
 else{const n=Math.min(48,Math.max(1,parseInt($("fn").value)||1)),g=Date.now()+"",p=Math.round(v/n*100)/100;for(let k=0;k<n;k++)st.itens.push({...b,id:g+"-"+k,g:n>1?g:undefined,ps:n>1?n:undefined,pi:n>1?k+1:undefined,val:k<n-1?p:Math.round((v-p*(n-1))*100)/100,data:addD(e,k),st:k?"pendente":b.st,dp:k?undefined:b.dp})}
 save();$("mes").value=e.slice(0,7);ovClose()}
 function ovN(){const l=st.nt.filter(n=>!nfl||!n.r);ov(back+`<b style="font-size:19px;flex:1">Notificações</b><span class="lb">${st.nt.filter(n=>!n.r).length} não lida(s)</span></div><div class="seg"><button data-a="nl" data-f="0" class="${nfl?"":"on"}">Todas</button><button data-a="nl" data-f="1" class="${nfl?"on":""}">Não lidas</button></div><div class="row" style="margin-bottom:10px"><a class="lk" data-a="ma">Marcar todas como lidas</a><a class="lk" data-a="lc">Limpar lidas</a></div><div class="card">`+(l.map(n=>`<div class="it" data-a="nr" data-k="${esc(n.k)}"><div class="ic" style="background:#1f2d4a">${NI[n.t]}</div><div style="flex:1"><div>${esc(n.x)}</div><div class="lb">${new Date(n.ts).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div></div>${n.r?"":'<span class="dot"></span>'}<button class="ib" data-a="nd" data-k="${esc(n.k)}">×</button></div>`).join("")||'<div class="lb">Nenhuma notificação por aqui.</div>')+`</div>`)}
-function pay(id,p){const i=st.itens.find(x=>x.id===id);if(!i)return;if(p){i.st="pago";i.dp=hoje;nf("c:"+id+":"+Date.now(),"c",`Sua despesa de ${R(i.val)} foi marcada como paga.`,id)}else{i.st="pendente";delete i.dp}save();ovD(cur||id)}
+function pay(id,p){const i=st.itens.find(x=>x.id===id);if(!i)return;if(p){i.st="pago";i.dp=hoje;nf("c:"+id+":"+Date.now(),"c",`Sua despesa de ${R(i.val)} foi marcada como paga.`,id)}else{i.st="pendente";delete i.dp}flush();save();ovD(cur||id)}
 function act(a,d){const m=$("mes").value;
 if(a==="o")return ovD(d.id);if(a==="nw")return ovF();if(a==="cl")return ovClose();if(a==="nt")return ovN();
 if(a==="va"){sf="pendente";xp="t";return go("ex")}if(a==="c"){xc=d.c;sf="";xp="m";return go("ex")}
@@ -143,7 +146,7 @@ if(a==="cr"){const s=st.rec.find(x=>x.id===d.id);if(s&&confirm("Cancelar as reco
 if(a==="nl"){nfl=+d.f;return ovN()}
 if(a==="ma"){st.nt.forEach(n=>n.r=1);save();return ovN()}if(a==="lc"){st.nt.filter(n=>n.r).forEach(n=>st.nk.push(n.k));st.nt=st.nt.filter(n=>!n.r);save();return ovN()}
 if(a==="nd"){st.nk.push(d.k);st.nt=st.nt.filter(n=>n.k!==d.k);save();return ovN()}
-if(a==="nr"){const n=st.nt.find(x=>x.k===d.k);if(n){n.r=1;save();return n.id&&st.itens.some(x=>x.id===n.id)?ovD(n.id):ovN()}return}
+if(a==="nr"){const n=st.nt.find(x=>x.k===d.k);if(n){n.r=1;save();if(n.id&&st.itens.some(x=>x.id===n.id))return ovD(n.id);if(n.t==="v"||n.t==="a"){sf="pendente";xp="t";ovClose();return go("ex")}return ovN()}return}
 if(a==="pm"){if(window.Notification)Notification.requestPermission().then(render);return}
 if(a==="ca"){const n=$("an1").value.trim(),t=$("at").value;if(!n||st.cats[t].some(x=>x.n===n))return alert("Informe um nome novo para a categoria.");st.cats[t].push({n,i:$("ai").value||"🏷",c:$("ac").value});save();return render()}
 if(a==="cn"){const n=prompt("Novo nome da categoria:",d.n);if(n&&n.trim()&&!st.cats[d.t].some(x=>x.n===n.trim())){st.cats[d.t].find(x=>x.n===d.n).n=n.trim();st.itens.forEach(i=>{if(i.tipo===d.t&&i.cat===d.n)i.cat=n.trim()});save();render()}return}
